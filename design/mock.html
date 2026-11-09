@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>News Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+    /* Search glow */
+    .search-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 1px #3b82f6, 0 0 20px rgba(59,130,246,0.18);
+      border-color: #3b82f6;
+    }
+
+    /* Story card */
+    .story-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      min-width: 148px;
+      max-width: 148px;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      flex-shrink: 0;
+    }
+    .story-card:hover {
+      transform: translateY(-2px);
+      border-color: #3a3a3a;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .story-card:active { transform: translateY(0px); }
+
+    /* Trending card */
+    .trending-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      min-width: 180px;
+      max-width: 180px;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      flex-shrink: 0;
+    }
+    .trending-card:hover {
+      transform: translateY(-2px);
+      border-color: #3a3a3a;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    /* Category story row */
+    .cat-story-row {
+      border-radius: 10px;
+      transition: background 0.15s ease;
+      cursor: pointer;
+    }
+    .cat-story-row:hover { background: #1e1e1e; }
+
+    /* Horizontal scroll row */
+    .scroll-row {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 8px;
+    }
+    .scroll-row > * { scroll-snap-align: start; }
+
+    /* Timeline dot */
+    .timeline-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3b82f6;
+      flex-shrink: 0;
+      margin-top: 5px;
+      box-shadow: 0 0 8px rgba(59,130,246,0.5);
+    }
+    .timeline-line {
+      width: 1px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    /* Page transitions */
+    .page {
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    .page.hidden-page {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+      width: 100%;
+      transform: translateX(24px);
+    }
+    .page.visible-page {
+      opacity: 1;
+      pointer-events: all;
+      position: relative;
+      transform: translateX(0);
+    }
+
+    /* Heart button */
+    .heart-btn {
+      transition: transform 0.15s ease;
+    }
+    .heart-btn:active { transform: scale(0.85); }
+    .heart-btn.following svg { fill: #ef4444; stroke: #ef4444; }
+
+    /* Badge pulse */
+    .badge-new {
+      animation: badge-pop 0.3s ease;
+    }
+    @keyframes badge-pop {
+      0% { transform: scale(0.7); opacity:0; }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity:1; }
+    }
+
+    /* Category section */
+    .cat-section {
+      background: #111;
+      border: 1px solid #1f1f1f;
+      border-radius: 16px;
+    }
+
+    /* Nav */
+    .nav-item {
+      color: #666;
+      cursor: pointer;
+      transition: color 0.15s;
+      font-size: 14px;
+      padding: 4px 12px;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-item:hover { color: #f5f5f5; background: #1a1a1a; }
+    .nav-item.active { color: #f5f5f5; }
+
+    /* Search bar */
+    .search-bar {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      transition: all 0.2s ease;
+    }
+
+    /* Load more */
+    .load-more-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      border-radius: 10px;
+      padding: 10px 28px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 14px;
+    }
+    .load-more-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+
+    /* Section header */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #555;
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 640px) {
+      .story-card { min-width: 134px; max-width: 134px; }
+      .trending-card { min-width: 160px; max-width: 160px; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- ============================================================
+     HOME PAGE
+     ============================================================ -->
+<div id="home-page" class="page visible-page max-w-5xl mx-auto px-4 pb-16">
+
+  <!-- Top Nav -->
+  <nav class="flex items-center justify-between py-4 mb-2">
+    <div class="flex items-center gap-1">
+      <span class="text-xl">📰</span>
+      <span class="font-semibold text-base tracking-tight ml-1">News Tracker</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <button class="nav-item">Discover</button>
+      <button class="nav-item active font-medium">Home</button>
+      <button class="ml-2 px-4 py-1.5 rounded-full text-sm font-medium bg-blue-600 hover:bg-blue-500 transition-colors text-white">Sign in</button>
+    </div>
+  </nav>
+
+  <!-- Search Bar -->
+  <div class="my-8 max-w-xl mx-auto">
+    <div class="search-bar flex items-center gap-3 px-4 py-3.5">
+      <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input
+        class="search-input bg-transparent flex-1 text-sm text-gray-300 placeholder-gray-600 border-none focus:outline-none"
+        placeholder="Search or create a story…"
+        id="search-input"
+      />
+      <kbd class="hidden sm:inline-flex items-center gap-1 text-xs text-gray-600 border border-gray-700 rounded px-1.5 py-0.5">⌘K</kbd>
+    </div>
+  </div>
+
+  <!-- Your Stories -->
+  <section class="mb-10">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-base font-semibold">Your Stories</h2>
+        <p class="text-xs text-gray-600 mt-0.5">5 stories tracked</p>
+      </div>
+      <button class="text-blue-500 text-sm hover:text-blue-400 transition-colors">See all</button>
+    </div>
+    <div class="scroll-row" id="your-stories-row">
+      <!-- Cards injected by JS -->
+    </div>
+  </section>
+
+  <!-- Trending -->
+  <section class="mb-10">
+    <div class="flex items-center gap-2 mb-4">
+      <span>🔥</span>
+      <h2 class="text-base font-semibold">Trending</h2>
+      <span class="section-label ml-1">Right now</span>
+    </div>
+    <div class="scroll-row" id="trending-row">
+      <!-- Cards injected by JS -->
+    </div>
+  </section>
+
+  <!-- Category Grid -->
+  <section>
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="text-base font-semibold">By Category</h2>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="categories-grid">
+      <!-- Injected by JS -->
+    </div>
+  </section>
+</div>
+
+
+<!-- ============================================================
+     TIMELINE / STORY DETAIL PAGE
+     ============================================================ -->
+<div id="timeline-page" class="page hidden-page max-w-2xl mx-auto px-4 pb-16">
+
+  <!-- Back button -->
+  <div class="py-4 mb-2">
+    <button id="back-btn" class="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back
+    </button>
+  </div>
+
+  <!-- Story Header -->
+  <div class="mb-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span id="story-icon" class="text-2xl">🌍</span>
+          <h1 id="story-title" class="text-2xl font-bold tracking-tight">Iran War</h1>
+        </div>
+        <p id="story-meta" class="text-sm text-gray-500 mt-1">1,247 articles · Tracking since Jan 2026</p>
+      </div>
+      <button id="follow-btn" class="heart-btn flex items-center gap-2 px-4 py-2 rounded-full border border-gray-700 text-sm font-medium transition-all hover:border-red-500 hover:text-red-400 text-gray-400" onclick="toggleFollow(this)">
+        <svg class="w-4 h-4 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+        </svg>
+        <span id="follow-text">Follow</span>
+      </button>
+    </div>
+
+    <!-- Stat pills -->
+    <div class="flex items-center gap-3 mt-4">
+      <span id="story-new-badge" class="px-2.5 py-1 rounded-full bg-blue-600/15 text-blue-400 text-xs font-semibold">12 new today</span>
+      <span class="text-gray-600 text-xs">Last update 35 min ago</span>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div id="timeline-entries" class="space-y-0">
+    <!-- Injected by JS -->
+  </div>
+
+  <div class="flex justify-center mt-8">
+    <button class="load-more-btn">Load more ↓</button>
+  </div>
+</div>
+
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const yourStories = [
+  { id: 'iran-war',  name: 'Iran War',   icon: '🌍', newCount: 12, timeAgo: '2h ago',  color: '#ef4444', articles: 1247, since: 'Jan 2026' },
+  { id: 'bitcoin',   name: 'Bitcoin',    icon: '₿',  newCount: 3,  timeAgo: '45m ago', color: '#f59e0b', articles: 289,  since: 'Feb 2026' },
+  { id: 'openclaw',  name: 'OpenClaw',   icon: '🤖', newCount: 1,  timeAgo: '1d ago',  color: '#8b5cf6', articles: 34,   since: 'Mar 2026' },
+  { id: 'trump',     name: 'Trump',      icon: '🇺🇸', newCount: 8,  timeAgo: '30m ago', color: '#3b82f6', articles: 2104, since: 'Nov 2024' },
+  { id: 'ai-llms',   name: 'AI & LLMs',  icon: '🧠', newCount: 5,  timeAgo: '1h ago',  color: '#06b6d4', articles: 891,  since: 'Jan 2026' },
+];
+
+const trending = [
+  { id: 'trump-tariffs',     name: 'Trump Tariffs',       icon: '📈', articles: 847,  heat: 95 },
+  { id: 'iran-us-conflict',  name: 'Iran-US Conflict',    icon: '🌍', articles: 1247, heat: 100 },
+  { id: 'fed-rate',          name: 'Fed Rate Decision',   icon: '🏦', articles: 312,  heat: 62 },
+  { id: 'bitcoin-rally',     name: 'Bitcoin Rally',       icon: '₿',  articles: 289,  heat: 58 },
+  { id: 'tesla-recall',      name: 'Tesla Recall',        icon: '🚗', articles: 156,  heat: 42 },
+  { id: 'apple-m5',          name: 'Apple M5 Launch',     icon: '💻', articles: 98,   heat: 35 },
+  { id: 'ncaa',              name: 'NCAA March Madness',  icon: '🏀', articles: 445,  heat: 78 },
+  { id: 'oil-surge',         name: 'Oil Price Surge',     icon: '🛢️', articles: 534,  heat: 83 },
+];
+
+const categories = [
+  {
+    id: 'world', label: '🌍 World', color: '#3b82f6',
+    stories: [
+      { id: 'iran-war',    name: 'Iran War',          count: 1247, timeAgo: '35m', hot: true },
+      { id: 'ukraine',     name: 'Ukraine Conflict',  count: 892,  timeAgo: '1h',  hot: false },
+      { id: 'syria',       name: 'Syria Ceasefire',   count: 231,  timeAgo: '3h',  hot: false },
+      { id: 'china-taiwan',name: 'China-Taiwan',      count: 445,  timeAgo: '2h',  hot: true  },
+    ]
+  },
+  {
+    id: 'business', label: '📈 Business', color: '#22c55e',
+    stories: [
+      { id: 'oil-prices',  name: 'Oil Prices',        count: 534,  timeAgo: '1h',  hot: true },
+      { id: 'fed-rates',   name: 'Fed Interest Rates',count: 312,  timeAgo: '4h',  hot: false },
+      { id: 'tech-earn',   name: 'Tech Earnings',     count: 189,  timeAgo: '6h',  hot: false },
+      { id: 'housing',     name: 'Housing Market',    count: 143,  timeAgo: '1d',  hot: false },
+    ]
+  },
+  {
+    id: 'tech', label: '💻 Tech', color: '#8b5cf6',
+    stories: [
+      { id: 'ai-llms',     name: 'AI/LLMs',           count: 891,  timeAgo: '12m', hot: true },
+      { id: 'apple-m5',    name: 'Apple M5',           count: 98,   timeAgo: '2h',  hot: false },
+      { id: 'gpt5',        name: 'OpenAI GPT-5',       count: 342,  timeAgo: '45m', hot: true },
+      { id: 'quantum',     name: 'Quantum Computing',  count: 67,   timeAgo: '1d',  hot: false },
+    ]
+  },
+  {
+    id: 'sports', label: '🏀 Sports', color: '#f59e0b',
+    stories: [
+      { id: 'ncaa',        name: 'NCAA March Madness', count: 445,  timeAgo: '8m',  hot: true },
+      { id: 'nba',         name: 'NBA Playoffs',       count: 312,  timeAgo: '30m', hot: false },
+      { id: 'f1',          name: 'F1 Season',          count: 189,  timeAgo: '5h',  hot: false },
+      { id: 'worldcup',    name: 'World Cup Qualifiers',count: 98,  timeAgo: '2d',  hot: false },
+    ]
+  },
+  {
+    id: 'entertainment', label: '🎬 Entertainment', color: '#ec4899',
+    stories: [
+      { id: 'oscars',      name: 'Oscars 2026',        count: 234,  timeAgo: '1h',  hot: true },
+      { id: 'marvel',      name: 'Marvel Phase 7',     count: 167,  timeAgo: '3h',  hot: false },
+      { id: 'swift',       name: 'Taylor Swift Tour',  count: 312,  timeAgo: '6h',  hot: false },
+      { id: 'kendrick',    name: 'Kendrick Album',     count: 189,  timeAgo: '2h',  hot: true },
+    ]
+  },
+  {
+    id: 'crypto', label: '₿ Crypto', color: '#f97316',
+    stories: [
+      { id: 'bitcoin-c',   name: 'Bitcoin',            count: 289,  timeAgo: '45m', hot: true },
+      { id: 'eth-etf',     name: 'Ethereum ETF',       count: 134,  timeAgo: '2h',  hot: false },
+      { id: 'stablecoin',  name: 'Stablecoin Regulation',count:98,  timeAgo: '4h',  hot: false },
+      { id: 'defi',        name: 'DeFi Hacks',         count: 56,   timeAgo: '1d',  hot: false },
+    ]
+  },
+];
+
+// Timeline data per story
+const timelines = {
+  'iran-war': {
+    icon: '🌍', title: 'Iran War', articles: 1247, since: 'Jan 2026', newCount: 12,
+    following: false,
+    entries: [
+      { time: '35 min ago', source: 'Reuters', headline: 'US strikes IRGC positions near Strait of Hormuz', summary: 'American warships launched precision strikes against Islamic Revolutionary Guard Corps naval facilities early Monday, escalating tensions in the region.' },
+      { time: '2h ago',     source: 'BBC',     headline: 'Oil surges past $100 per barrel amid Iran tensions', summary: 'Brent crude jumped 7% to breach the $100 threshold for the first time since 2022 as markets priced in supply disruption risk.' },
+      { time: '4h ago',     source: 'Al Jazeera', headline: 'Iran threatens "asymmetric retaliation" after overnight strikes', summary: null },
+      { time: 'Yesterday',  source: 'CNN',     headline: 'Trump issues 72-hour ultimatum to Tehran over nuclear program', summary: null },
+      { time: 'Mar 21',     source: 'AP',      headline: 'Hormuz shipping routes disrupted as tanker traffic falls 40%', summary: 'Lloyd\'s of London war risk premiums skyrocket as cargo vessels reroute around Cape of Good Hope.' },
+      { time: 'Mar 20',     source: 'NYT',     headline: 'IAEA inspectors expelled from Fordow enrichment facility', summary: null },
+    ]
+  },
+  'bitcoin': {
+    icon: '₿', title: 'Bitcoin', articles: 289, since: 'Feb 2026', newCount: 3,
+    following: true,
+    entries: [
+      { time: '45 min ago', source: 'CoinDesk', headline: 'Bitcoin touches $98,400 — highest since January', summary: 'The rally accelerated after Fed minutes showed policymakers open to rate cuts, boosting risk appetite.' },
+      { time: '3h ago',     source: 'Bloomberg', headline: 'BlackRock Bitcoin ETF sees record $2.1B single-day inflow', summary: null },
+      { time: '6h ago',     source: 'Reuters', headline: 'MicroStrategy buys another 8,200 BTC, total holdings now 420,000', summary: null },
+      { time: 'Yesterday',  source: 'CNBC',    headline: 'Analysts eye $110K target as Bitcoin dominance hits 58%', summary: null },
+    ]
+  },
+  'trump': {
+    icon: '🇺🇸', title: 'Trump', articles: 2104, since: 'Nov 2024', newCount: 8,
+    following: false,
+    entries: [
+      { time: '30 min ago', source: 'Politico', headline: 'Trump signs executive order expanding tariffs to EU pharmaceuticals', summary: 'The order targets €340B in European goods, threatening a transatlantic trade war.' },
+      { time: '1h ago',     source: 'Washington Post', headline: 'White House dismisses two senior NSC staffers following Iran briefing leak', summary: null },
+      { time: '3h ago',     source: 'AP',       headline: 'Trump approval rating hits 47% amid Iran crisis — Gallup', summary: null },
+      { time: 'Yesterday',  source: 'Fox News', headline: 'President Trump addresses nation on Iran strikes: "We will finish the job"', summary: 'In a primetime address, Trump defended the military action and warned of further escalation if Iran retaliates.' },
+    ]
+  },
+  'ai-llms': {
+    icon: '🧠', title: 'AI & LLMs', articles: 891, since: 'Jan 2026', newCount: 5,
+    following: true,
+    entries: [
+      { time: '12 min ago', source: 'The Verge', headline: 'Anthropic releases Claude 4 Opus with 200K context and real-time web access', summary: 'The new model scores highest on every major benchmark and is available today in the API.' },
+      { time: '1h ago',     source: 'TechCrunch', headline: 'OpenAI GPT-5 enters limited beta — early testers report "qualitative leap"', summary: null },
+      { time: '4h ago',     source: 'Wired',    headline: 'Google DeepMind\'s Gemini Ultra 2.0 aces bar exam, USMLE with perfect scores', summary: null },
+      { time: 'Yesterday',  source: 'MIT Tech Review', headline: 'AI model training compute doubles every 5 months — new Stanford report', summary: null },
+    ]
+  },
+  'openclaw': {
+    icon: '🤖', title: 'OpenClaw', articles: 34, since: 'Mar 2026', newCount: 1,
+    following: true,
+    entries: [
+      { time: '1d ago',     source: 'ProductHunt', headline: 'OpenClaw hits #1 Product of the Day — 4,200 upvotes', summary: 'The AI companion platform surged to the top with glowing reviews from power users.' },
+      { time: 'Mar 21',     source: 'TechCrunch', headline: 'OpenClaw raises $12M seed round led by a16z', summary: null },
+      { time: 'Mar 19',     source: 'Hacker News', headline: 'Show HN: I built an AI that runs on my phone and actually remembers things', summary: 'Top comment: "This is the first AI assistant that feels like it has a personality."' },
+    ]
+  },
+};
+
+const defaultTimeline = timelines['iran-war'];
+
+// ============================================================
+// RENDER — Your Stories
+// ============================================================
+function renderYourStories() {
+  const container = document.getElementById('your-stories-row');
+  container.innerHTML = yourStories.map(s => `
+    <div class="story-card p-3.5" onclick="openTimeline('${s.id}')">
+      <div class="flex items-start justify-between mb-3">
+        <span class="text-xl">${s.icon}</span>
+        ${s.newCount > 0 ? `<span class="badge-new inline-flex items-center justify-center text-xs font-bold rounded-full px-2 py-0.5" style="background:${s.color}22;color:${s.color}">${s.newCount}</span>` : ''}
+      </div>
+      <div class="font-semibold text-sm leading-tight mb-1">${s.name}</div>
+      <div class="text-xs text-gray-600">${s.timeAgo}</div>
+      <div class="mt-2.5 h-0.5 rounded-full" style="background: linear-gradient(90deg, ${s.color}88, transparent); width: 40px"></div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// RENDER — Trending
+// ============================================================
+function renderTrending() {
+  const container = document.getElementById('trending-row');
+  container.innerHTML = trending.map((t, i) => {
+    const heatColor = t.heat > 80 ? '#ef4444' : t.heat > 60 ? '#f97316' : '#f59e0b';
+    const rank = i + 1;
+    return `
+      <div class="trending-card p-3.5" onclick="openTimeline('${t.id}')">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-bold text-gray-700">#${rank}</span>
+          <span class="text-lg">${t.icon}</span>
+        </div>
+        <div class="font-semibold text-sm leading-tight mb-2">${t.name}</div>
+        <div class="text-xs text-gray-600 mb-2">${t.articles.toLocaleString()} articles</div>
+        <div class="w-full bg-gray-800 rounded-full h-1">
+          <div class="h-1 rounded-full" style="width:${t.heat}%;background:${heatColor}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// RENDER — Categories
+// ============================================================
+function renderCategories() {
+  const container = document.getElementById('categories-grid');
+  container.innerHTML = categories.map(cat => `
+    <div class="cat-section p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <h3 class="font-semibold text-sm">${cat.label}</h3>
+        <div class="flex-1 h-px" style="background:${cat.color}33"></div>
+      </div>
+      <div class="space-y-1">
+        ${cat.stories.map(s => `
+          <div class="cat-story-row flex items-center gap-3 px-2 py-2" onclick="openTimeline('${s.id}')">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium truncate">${s.name}</span>
+                ${s.hot ? `<span class="text-xs" style="color:${cat.color}">●</span>` : ''}
+              </div>
+              <div class="text-xs text-gray-600">${s.count.toLocaleString()} articles · ${s.timeAgo} ago</div>
+            </div>
+            <svg class="w-3 h-3 text-gray-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// RENDER — Timeline entries
+// ============================================================
+function renderTimeline(data) {
+  const container = document.getElementById('timeline-entries');
+  container.innerHTML = data.entries.map((entry, i) => {
+    const isLast = i === data.entries.length - 1;
+    return `
+      <div class="flex gap-4">
+        <div class="flex flex-col items-center pt-1">
+          <div class="timeline-dot"></div>
+          ${!isLast ? `<div class="timeline-line flex-1 my-1" style="min-height:40px"></div>` : ''}
+        </div>
+        <div class="pb-6 flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs text-gray-600">${entry.time}</span>
+            <span class="text-xs font-medium text-blue-400">${entry.source}</span>
+          </div>
+          <p class="text-sm font-semibold leading-snug text-gray-100 mb-1.5">"${entry.headline}"</p>
+          ${entry.summary ? `<p class="text-xs text-gray-500 leading-relaxed">${entry.summary}</p>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentFollowState = {};
+
+function openTimeline(storyId) {
+  const data = timelines[storyId] || {
+    icon: '📰', title: storyId.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),
+    articles: Math.floor(Math.random()*500+50),
+    since: 'Mar 2026', newCount: 0, following: false,
+    entries: [
+      { time: '2h ago',    source: 'Reuters', headline: 'Developing story — check back for updates', summary: 'Our tracking system is aggregating the latest coverage across major outlets.' },
+      { time: 'Yesterday', source: 'AP',      headline: 'Background: How this story developed', summary: null },
+    ]
+  };
+
+  // Update header
+  document.getElementById('story-icon').textContent = data.icon;
+  document.getElementById('story-title').textContent = data.title;
+  document.getElementById('story-meta').textContent = `${data.articles.toLocaleString()} articles · Tracking since ${data.since}`;
+  document.getElementById('story-new-badge').textContent = data.newCount > 0 ? `${data.newCount} new today` : 'Up to date';
+
+  // Follow state
+  const followBtn = document.getElementById('follow-btn');
+  const followText = document.getElementById('follow-text');
+  const isFollowing = currentFollowState[storyId] !== undefined ? currentFollowState[storyId] : data.following;
+  followBtn.dataset.storyId = storyId;
+  updateFollowBtn(followBtn, followText, isFollowing);
+
+  renderTimeline(data);
+  showPage('timeline');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateFollowBtn(btn, textEl, isFollowing) {
+  const svg = btn.querySelector('svg');
+  if (isFollowing) {
+    btn.classList.add('following');
+    btn.style.borderColor = '#ef4444';
+    btn.style.color = '#ef4444';
+    textEl.textContent = 'Following';
+    svg.setAttribute('fill', '#ef4444');
+    svg.setAttribute('stroke', '#ef4444');
+  } else {
+    btn.classList.remove('following');
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    textEl.textContent = 'Follow';
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+  }
+}
+
+function toggleFollow(btn) {
+  const storyId = btn.dataset.storyId;
+  const textEl = document.getElementById('follow-text');
+  const currentState = currentFollowState[storyId] !== undefined
+    ? currentFollowState[storyId]
+    : (timelines[storyId]?.following || false);
+  const newState = !currentState;
+  currentFollowState[storyId] = newState;
+  updateFollowBtn(btn, textEl, newState);
+
+  // Micro-bounce animation
+  btn.style.transform = 'scale(0.9)';
+  setTimeout(() => btn.style.transform = '', 150);
+}
+
+function showPage(page) {
+  const home = document.getElementById('home-page');
+  const timeline = document.getElementById('timeline-page');
+  if (page === 'timeline') {
+    home.classList.remove('visible-page');
+    home.classList.add('hidden-page');
+    timeline.classList.remove('hidden-page');
+    timeline.classList.add('visible-page');
+  } else {
+    timeline.classList.remove('visible-page');
+    timeline.classList.add('hidden-page');
+    home.classList.remove('hidden-page');
+    home.classList.add('visible-page');
+  }
+}
+
+// Back button
+document.getElementById('back-btn').addEventListener('click', () => {
+  showPage('home');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Search focus effect
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('focus', () => {
+  searchInput.closest('.search-bar').style.transform = 'scale(1.01)';
+});
+searchInput.addEventListener('blur', () => {
+  searchInput.closest('.search-bar').style.transform = '';
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+  if (e.key === 'Escape') {
+    if (!document.getElementById('timeline-page').classList.contains('hidden-page')) {
+      showPage('home');
+    }
+    searchInput.blur();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderYourStories();
+renderTrending();
+renderCategories();
+</script>
+</body>
+</html>
